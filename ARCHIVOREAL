@@ -1,0 +1,119 @@
+Para implementar profesionalmente los jobs que aparecen en tu imagen de GitHub (como typecheck, prisma-validate, quality-gate, etc.), es fundamental seguir una arquitectura de "Fail Fast" (fallar rápido) y Separación de Responsabilidades.
+Aquí tienes la checklist de mejores prácticas para el equipo de backend y el archivo ci-cd.yml optimizado siguiendo los estándares actuales de la industria.
+JetBrains
+JetBrains
+ +1
+📋 Checklist de Best Practices para el Backend
+[ ] Paralelización: No ejecutes todo en un solo job. Divide tareas independientes (lint, typecheck, tests) para que corran en paralelo y ahorren tiempo.
+[ ] Caché Agresivo: Usa caché tanto para node_modules como para las capas de Docker para reducir el tiempo de build de minutos a segundos.
+[ ] Gestión de Base de Datos: Para los tests de integración y Prisma, usa una base de datos efímera (Docker Service) en lugar de una base de datos externa para evitar conflictos de datos.
+[ ] Seguridad (Least Privilege): Configura los permissions del GITHUB_TOKEN a nivel de job como read-only por defecto y solo eleva permisos donde sea estrictamente necesario.
+[ ] Control de Concurrencia: Usa concurrency para cancelar ejecuciones antiguas si se hace un nuevo push a la misma rama, ahorrando costos de CI.
+[ ] Validación de Prisma: Antes de cualquier build, ejecuta siempre prisma validate para asegurar que el esquema es correcto y prisma generate para tener los tipos actualizados.
+GitHub Docs
+GitHub Docs
+ +9
+
+
+name: Backend Production CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+# Cancela ejecuciones anteriores en la misma rama para ahorrar recursos
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    name: Setup & Install
+    runs-on: ubuntu-latest
+    outputs:
+      cache-hit: ${{ steps.cache-deps.outputs.cache-hit }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
+
+  static-analysis:
+    name: Static Analysis
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        check: [lint, format-check, typecheck, prisma-validate]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run ${{ matrix.check }}
+        run: npm run ${{ matrix.check }}
+
+  tests:
+    name: Automated Testing
+    needs: setup
+    runs-on: ubuntu-latest
+    # Levantamos DB temporal para Integration Tests
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Prisma Generate & Migrate
+        run: |
+          npx prisma generate
+          npx prisma migrate dev --name init
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/postgres
+      - name: Run Unit & Integration Tests
+        run: |
+          npm run unit-test
+          npm run integration-test
+      - name: Coverage & Quality Gate
+        run: npm run coverage # Debe incluir el quality-gate o subir a SonarQube
+
+  build:
+    name: Docker Build
+    needs: [static-analysis, tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and Load
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false # Cambiar a true con login previo para CD
+          tags: app-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+
+
+
