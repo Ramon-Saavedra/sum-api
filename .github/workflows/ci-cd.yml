@@ -13,10 +13,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js (LTS)
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install Dependencies
@@ -24,21 +24,18 @@ jobs:
 
       - name: Generate Prisma Client
         run: npx prisma generate
-        env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/db"
 
 
-      - name: Cache Node Modules & Prisma
+      - name: Cache Dependencies
         uses: actions/cache@v4
-        id: cache-node-modules
         with:
           path: |
             node_modules
             node_modules/.prisma
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/schema.prisma') }}
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/prisma/schema.prisma') }}
 
   static-analysis:
-    name: 🔍 Static Analysis
+    name: 🔍 ${{ matrix.check }}
     needs: setup
     runs-on: ubuntu-latest
     strategy:
@@ -48,20 +45,23 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js (LTS)
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Restore Cache
         uses: actions/cache@v4
+        id: cache-restore
         with:
           path: |
             node_modules
             node_modules/.prisma
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/schema.prisma') }}
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/prisma/schema.prisma') }}
+
+      - name: Install dependencies if cache missed
+        if: steps.cache-restore.outputs.cache-hit != 'true'
+        run: npm ci && npx prisma generate
 
       - name: Run ${{ matrix.check }}
         run: npm run ${{ matrix.check }}
-        env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/db"
