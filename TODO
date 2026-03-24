@@ -1,132 +1,319 @@
-# Checklist CI/CD Backend TireCode
-
-1. Configurar el workflow para ejecutarse en:
-    - push
-    - pull_request
-2. Crear el job setup.
-    - Usar Node LTS
-    - Instalar dependencias
-    - Restaurar/cachear dependencias
-    - Generar Prisma Client
-3. Crear el job lint.
-    - Ejecutar ESLint y fallar si hay errores
-4. Crear el job format-check.
-    - Ejecutar Prettier en modo check
-5. Crear el job typecheck.
-    - Validar TypeScript en modo estricto sin emitir build final
-6. Crear el job prisma-validate.
-    - Validar el schema Prisma
-    - Generar el client
-    - Comprobar que Prisma está consistente
-7. Crear el job unit-test.
-    - Ejecutar únicamente tests unitarios de dominio y servicios puros
-8. Crear el job integration-test.
-    - Levantar PostgreSQL en CI
-    - Ejecutar tests de integración reales contra DB
-9. Crear el job coverage.
-    - Generar reporte de cobertura
-    - Validar el mínimo definido
-10. Crear el job security.
-    - Revisar vulnerabilidades de dependencias
-11. Crear el job build.
-    - Compilar la aplicación NestJS completa
-12. Crear el job docker-build.
-    - Construir la imagen Docker de producción para validar que el contenedor funciona
-13. Crear el job quality-gate.
-    - Depender de:
-        - lint
-        - format-check
-        - typecheck
-        - prisma-validate
-        - unit-test
-        - integration-test
-        - build
-        - docker-build
-14. Ejecutar el workflow en una rama de prueba y corregir errores hasta que todo quede en verde.
-15. Definir qué jobs pueden correr en paralelo y cuáles deben depender de otros para optimizar tiempos.
-16. Asegurar que la rama principal quede protegida para que solo se pueda mergear si el quality-gate pasa.
-17. Añadir al README una sección corta explicando que el backend tiene CI/CD profesional con:
-    - lint
-    - typecheck
-    - Prisma validation
-    - unit tests
-    - integration tests
-    - coverage
-    - build
-    - docker validation
-18. Revisar periódicamente el workflow para ajustarlo cuando se añadan:
-    - import CSV
-    - BullMQ
-    - Redis
-    - más integración o seguridad
-19. Mantener el pipeline simple, rápido y realista.
-    - No meter pasos de frontend ni checks que no aporten al backend.
 
 
---------------------------------------
 
-PASO
 
-1 Configurar el workflow para ejecutarse en:
 
-push
-pull_request
 
-2 Job setup:
 
-Usar Node LTS
-Instalar dependencias
-Restaurar/cachear dependencias
-Generar Prisma Client
 
-3 Job lint:
 
-Ejecutar ESLint y fallar si hay errores
 
-4 Job format-check:
 
-Ejecutar Prettier en modo check
 
-5 Job typecheck:
 
-Validar TypeScript en modo estricto sin emitir build final
 
-6 Job prisma-validate:
 
-Validar el schema Prisma
-Generar el client
-Comprobar que Prisma está consistente
 
-7 Job unit-test:
 
-Ejecutar únicamente tests unitarios de dominio y servicios puros
+## Workflow CI/CD profesional para backend (SUM API)
 
-8 Job integration-test:
 
-Levantar PostgreSQL en CI
-Ejecutar tests de integración reales contra DB
+Objetivo general
 
-9 Job coverage:
+El pipeline debe garantizar calidad profesional antes de aceptar cambios en backend.
 
-Generar reporte de cobertura
-Validar el mínimo definido
+Debe validar:
 
-10 Job security:
+formato
 
-Revisar vulnerabilidades de dependencias
-
-11 Job build:
-
-Compilar la aplicación NestJS completa
-
-12 Job docker-build:
-
-Construir la imagen Docker de producción para validar que el contenedor funciona
-
-13 Job quality-gate:
-
-Depender de:
 lint
+
+tipado
+
+integridad de Prisma
+
+tests unitarios
+
+tests de integración
+
+cobertura
+
+seguridad
+
+build de aplicación
+
+build de Docker
+
+Jobs que debe tener
+1. setup
+
+Preparar entorno de CI.
+
+Debe:
+
+usar Node LTS
+
+instalar dependencias
+
+cachear dependencias
+
+generar Prisma Client
+
+2. lint
+
+Validar reglas de ESLint.
+
+Debe fallar si:
+
+hay errores de lint
+
+hay malas prácticas definidas por el proyecto
+
+3. format-check
+
+Verificar formato con Prettier.
+
+Debe fallar si:
+
+hay archivos mal formateados
+
+4. typecheck
+
+Verificar TypeScript en modo estricto.
+
+Debe fallar si:
+
+hay errores de tipos
+
+se rompe el modo strict
+
+No debe emitir build final.
+Solo validar tipos.
+
+5. prisma-validate
+
+Validar esquema y estado de Prisma.
+
+Debe incluir:
+
+prisma validate
+
+validación de migraciones
+
+generación del client
+
+Debe fallar si:
+
+el schema es inválido
+
+el client no se puede generar
+
+hay inconsistencias obvias de migraciones
+
+6. unit-test
+
+Ejecutar tests unitarios.
+
+Debe cubrir:
+
+lógica de dominio
+
+normalizador
+
+parsers
+
+reglas 1:1
+
+servicios puros
+
+No debe depender de DB real.
+
+7. integration-test
+
+Ejecutar tests de integración con PostgreSQL real.
+
+Debe cubrir:
+
+lookup por code
+
+lookup por size
+
+errores esperados
+
+creación de mappings
+
+restricciones de integridad
+
+imports si existen
+
+Ideal:
+
+usar contenedor PostgreSQL en CI
+
+8. coverage
+
+Generar y verificar cobertura.
+
+Debe:
+
+producir reporte
+
+opcionalmente subir a Codecov
+
+validar mínimo de cobertura
+
+Recomendación:
+
+mínimo 60–70% al inicio en módulos core
+
+9. security
+
+Validar seguridad básica.
+
+Debe incluir:
+
+auditoría de dependencias
+
+revisión básica de vulnerabilidades conocidas
+
+Opcional:
+
+escaneo de secretos
+
+escaneo SAST si luego lo incorporan
+
+10. build
+
+Construir la aplicación NestJS.
+
+Debe fallar si:
+
+el proyecto no compila
+
+hay problemas de imports, módulos o configuración
+
+11. docker-build
+
+Construir imagen Docker de producción.
+
+Debe validar:
+
+que el Dockerfile funciona
+
+que el build de producción es correcto
+
+que la app está lista para despliegue containerizado
+
+No hace falta desplegar aún.
+Solo validar build de imagen.
+
+12. quality-gate
+
+Paso final.
+
+Debe depender de:
+
+lint
+
 format-check
+
 typecheck
+
 prisma-validate
+
+unit-test
+
+integration-test
+
+build
+
+docker-build
+
+Solo pasa si todo lo anterior está correcto.
+
+Orden profesional recomendado
+En paralelo después de setup
+
+lint
+
+format-check
+
+typecheck
+
+prisma-validate
+
+unit-test
+
+security
+
+Luego
+
+integration-test
+
+Luego
+
+coverage
+
+build
+
+Luego
+
+docker-build
+
+Finalmente
+
+quality-gate
+
+Qué NO debe tener este backend
+
+Lighthouse
+
+pruebas visuales de frontend
+
+jobs de UI
+
+cosas de navegador
+
+Eso no pertenece al backend.
+
+Extras profesionales recomendados
+
+Si quieren subir todavía más el nivel:
+
+correr CI en push y pull_request
+
+usar matrix solo si prueban varias versiones de Node
+
+separar tests unitarios e integración claramente
+
+publicar cobertura
+
+proteger rama principal con quality gate obligatorio
+
+Resumen corto para implementar
+
+El backend debe tener estos jobs:
+
+setup
+
+lint
+
+format-check
+
+typecheck
+
+prisma-validate
+
+unit-test
+
+integration-test
+
+coverage
+
+security
+
+build
+
+docker-build
+
+quality-gate
