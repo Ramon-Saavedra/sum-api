@@ -1,5 +1,6 @@
 name: Backend TireCode CI
 
+
 on:
   push:
     branches: [ "main", "develop" ]
@@ -7,8 +8,23 @@ on:
     branches: [ "main" ]
 
 jobs:
-  setup:
+  test-and-check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_dev_pass
+          POSTGRES_DB: sum_api
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -16,7 +32,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install Dependencies
@@ -24,44 +40,19 @@ jobs:
 
       - name: Generate Prisma Client
         run: npx prisma generate
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres_dev_pass@localhost:5432/sum_api"
 
+      - name: Run Database Migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres_dev_pass@localhost:5432/sum_api"
 
-      - name: Cache Dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            node_modules
-            node_modules/.prisma
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/prisma/schema.prisma') }}
-
-  static-analysis:
-    name: 🔍 ${{ matrix.check }}
-    needs: setup
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        check: [lint, format-check, typecheck]
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Restore Cache
-        uses: actions/cache@v4
-        id: cache-restore
-        with:
-          path: |
-            node_modules
-            node_modules/.prisma
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/prisma/schema.prisma') }}
-
-      - name: Install dependencies if cache missed
-        if: steps.cache-restore.outputs.cache-hit != 'true'
-        run: npm ci && npx prisma generate
-
-      - name: Run ${{ matrix.check }}
-        run: npm run ${{ matrix.check }}
+      - name: Static Analysis & Tests
+        run: |
+          npm run lint
+          npm run format-check
+          npm run typecheck
+          npm test
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres_dev_pass@localhost:5432/sum_api"
