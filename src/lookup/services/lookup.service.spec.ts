@@ -158,14 +158,17 @@ describe('LookupService', () => {
   it('lists public mappings with optional variants', async () => {
     prisma.tireCode.findMany.mockResolvedValue([
       {
+        id: 'mock-tire-code-id',
         codePublic: '107',
+        tireSizeId: 'mock-tire-size-id',
         tireSize: {
+          id: 'mock-tire-size-id',
           sizeRaw: '265/70R17',
           sizeNormalized: '265/70R17',
           tireVariants: [{ loadIndex: 91, speedIndex: 'V' }],
         },
       },
-    ]);
+    ] as any);
 
     const result = await lookupService.listMappingsPublic();
 
